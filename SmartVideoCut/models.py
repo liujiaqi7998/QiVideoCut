@@ -1,3 +1,4 @@
+import ctypes
 import os
 import threading
 import uuid
@@ -11,6 +12,7 @@ from django import forms
 from django.utils.html import format_html
 
 from QiVideoCut.settings import Update_ROOT
+from loguru import logger
 
 
 class video_status_db(models.Model):
@@ -19,7 +21,7 @@ class video_status_db(models.Model):
     file_uuid = models.TextField(verbose_name="文件UUID")
     file_raw_name = models.TextField(verbose_name="原始文件名")
     status = models.IntegerField(verbose_name="状态")
-    Task_PID = models.IntegerField(verbose_name="线程PID")
+    Task_PID = models.IntegerField(verbose_name="线程PID", default=-1)
     message = models.TextField(verbose_name="通知信息")
 
     def __str__(self):
@@ -32,38 +34,48 @@ class video_status_db(models.Model):
 
     # 自定义方法,主要负责给主机标注颜色
     def Status(self):
-        if self.status == -1:
-            format_td = format_html('<span style="padding:2px;background-color:red;color:white">错误</span>')
-        if self.status == 0:
-            format_td = format_html('<span style="padding:2px;background-color:yellow;color:white">上传中</span>')
-        elif self.status == 1:
-            format_td = format_html('<span style="padding:2px;background-color:yellow;color:black">转换中</span>')
-        elif self.status == 2:
-            format_td = format_html('<span style="padding:2px;background-color:green;color:white">分析中</span>')
-        elif self.status == 3:
-            format_td = format_html('<span style="padding:2px;background-color:green;color:white">剪辑中</span>')
-        elif self.status == 4:
-            format_td = format_html('<span style="padding:2px;background-color:green;color:white">合成中</span>')
-        elif self.status == 5:
-            format_td = format_html('<span style="padding:2px;background-color:red;color:white">完成</span>')
+        if self == -1:
+            format_td = "错误"
+        if self == 0:
+            format_td = "上传中"
+        elif self == 1:
+            format_td = "上传完成准备就绪"
+        elif self == 2:
+            format_td = "分析中"
+        elif self == 3:
+            format_td = "剪辑中"
+        elif self == 4:
+            format_td = "合成中"
+        elif self == 5:
+            format_td = "完成"
+        elif self == 6:
+            format_td = "终止"
         else:
-            format_td = format_html('<span style="padding:2px;background-color:black;color:white">未知</span>')
+            format_td = "未知"
         return format_td
 
 
-class del_video_Thread(threading.Thread):
-    def __init__(self, threadId, name, counter):
+All_Thread = {}
+
+
+class solve_video_Thread(threading.Thread):
+
+    def __init__(self, threadId, name):
         threading.Thread.__init__(self)
         self.threadId = threadId
         self.name = name
-        self.counter = counter
+        self.isRun = True
 
     def run(self):
         file_uuid = self.name
-        print(f'开始线程{file_uuid}')
+        logger.info(f'开始线程：{file_uuid}')
+
         temp_db = video_status_db.objects.get(file_uuid=file_uuid)  # 获取id为3的作者对象
         temp_db.status = 3
+        temp_db.message = video_status_db.Status(temp_db.status)
+        temp_db.Task_PID = temp_db.id
         temp_db.save()
+        All_Thread[temp_db.Task_PID] = self
 
         Raw_video_uri = os.path.join(Update_ROOT, 'Raw_video')
         Raw_video_file_uuid_uri = os.path.join(Raw_video_uri, file_uuid + ".mp4")
@@ -73,12 +85,29 @@ class del_video_Thread(threading.Thread):
 
         Watermark_file_uuid_uri = os.path.join(Update_ROOT, "watermark.png")
 
+        if not os.path.exists(Raw_video_file_uuid_uri):
+            temp_db = video_status_db.objects.get(file_uuid=file_uuid)  # 获取id为3的作者对象
+            temp_db.status = 0
+            temp_db.message = "读取视频错误：文件不存在"
+            temp_db.save()
+            logger.error(f'提取视频：{file_uuid}，时发送错误：文件不存在')
+            return
+
         # 初始化方向梯度直方图描述子
         hog = cv2.HOGDescriptor()
         # 设置支持向量机使得它成为一个预先训练好了的行人检测器
         hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
-        # 读取摄像头视频
-        capture = cv2.VideoCapture(Raw_video_file_uuid_uri)
+
+        try:
+            # 读取摄像头视频
+            capture = cv2.VideoCapture(Raw_video_file_uuid_uri)
+        except Exception as err:
+            temp_db = video_status_db.objects.get(file_uuid=file_uuid)  # 获取id为3的作者对象
+            temp_db.status = -1
+            temp_db.message = f"读取视频错误：{err}"
+            temp_db.save()
+            logger.error(f'提取视频：{file_uuid}，时发送错误：读取视频错误：{err}')
+            return
 
         frame_height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
         frame_width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -93,18 +122,24 @@ class del_video_Thread(threading.Thread):
         if capture.isOpened():
             m = 0
             while ret:
+                if not self.isRun:
+                    break
                 ret, img = capture.read()  # img 就是一帧图片
-                # 可以用 cv2.imshow() 查看这一帧，也可以逐帧保存
-                check_img = cv2.resize(img, (320, 180))
-                # 通过调用detectMultiScale的hog描述子方法，对图像中的行人进行检测。
-                (rects, weights) = hog.detectMultiScale(check_img, winStride=(4, 4), padding=(8, 8), scale=1.05)
-                # 应用非极大值抑制，通过设置一个阈值来抑制重叠的框。
-                rects = np.array([[x, y, x + w, y + h] for (x, y, w, h) in rects])
-                pick = non_max_suppression(rects, overlapThresh=0.65)
-                # 绘制红色人体矩形框
-                if len(pick) >= 1:
-                    writer.write(img)
-
+                if not ret: break
+                try:
+                    # 可以用 cv2.imshow() 查看这一帧，也可以逐帧保存
+                    check_img = cv2.resize(img, (int(frame_height / 4), int(frame_width / 4)))
+                    # 通过调用detectMultiScale的hog描述子方法，对图像中的行人进行检测。
+                    (rects, weights) = hog.detectMultiScale(check_img, winStride=(4, 4), padding=(8, 8), scale=1.05)
+                    # 应用非极大值抑制，通过设置一个阈值来抑制重叠的框。
+                    rects = np.array([[x, y, x + w, y + h] for (x, y, w, h) in rects])
+                    pick = non_max_suppression(rects, overlapThresh=0.65)
+                    # 绘制红色人体矩形框
+                    if len(pick) >= 1:
+                        writer.write(img)
+                except Exception as err:
+                    logger.error(f'提取视频：{file_uuid}，时发送错误：读取视频错误：{err}')
+                    pass
                 m = m + 1
                 temp_db = video_status_db.objects.get(file_uuid=file_uuid)  # 获取id为3的作者对象
                 temp_db.message = f'{m}/{frame_all_num}'
@@ -115,4 +150,12 @@ class del_video_Thread(threading.Thread):
         writer.release()
 
     def __del__(self):
-        print("线程结束！")
+        logger.info(f'结束线程：{self.name}')
+
+    def stop(self):
+        temp_db = video_status_db.objects.get(file_uuid=self.name)  # 获取id为3的作者对象
+        temp_db.status = 6
+        temp_db.message = video_status_db.Status(temp_db.status)
+        temp_db.save()
+        logger.info(f'强制结束线程：{self.threadId}')
+        self.isRun = False
