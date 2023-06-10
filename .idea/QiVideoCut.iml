@@ -17,6 +17,8 @@
       <excludeFolder url="file://$MODULE_DIR$/venv" />
       <excludeFolder url="file://$MODULE_DIR$/Update/Out_Video" />
       <excludeFolder url="file://$MODULE_DIR$/Update/Raw_video" />
+      <excludeFolder url="file://$MODULE_DIR$/web/QiVideoCut/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/Other" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

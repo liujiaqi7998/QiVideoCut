@@ -134,7 +134,6 @@ class solve_video_Thread(threading.Thread):
                     if len(pick) >= 1:
                         cv2.putText(img, Watermark_TEXT, (10,25), cv2.FONT_HERSHEY_PLAIN, 2, (255, 255, 255), 1)
                         writer.write(img)
-                        cv2.imshow("wname", img)
                 except Exception as err:
                     logger.error(f'提取视频：{file_uuid}，时发送错误：读取视频错误：{err}')
                     pass
