@@ -2,6 +2,8 @@ import json
 import os
 import time
 import uuid
+
+from django.utils.encoding import escape_uri_path
 from loguru import logger
 from django.http import HttpResponse
 from django.shortcuts import render
@@ -184,6 +186,40 @@ def stop_solve(request, file_uuid):
             logger.info(f"调用删除状态接口，但是没UUID：{file_uuid} 没有查到")
             return HttpResponse(json.dumps(back_data))
         pass
+    else:
+        # 请求方法为get时，生成文件上传页面
+        back_data = {
+            "code": -1001,
+            "msg": "请使用Get方法查看文件状态"
+        }
+        logger.info(f"调用删除状态接口，使用的是Post方法")
+        return HttpResponse(json.dumps(back_data))
+
+
+@logger.catch
+def download(request, file_uuid):
+    if request.method == "GET":
+        file_uuid = str(file_uuid)
+        Out_Video_uri = os.path.join(Update_ROOT, 'Out_Video')
+        Out_Video_file_uuid_uri = os.path.join(Out_Video_uri, file_uuid + ".mp4")
+        # 判断文件是否存在
+        if os.path.exists(Out_Video_file_uuid_uri):
+            temp_db = video_status_db.objects.get(file_uuid=file_uuid)  # 获取id为3的作者对象
+            file = open(Out_Video_file_uuid_uri, 'rb')
+            response = HttpResponse(file)
+            response['Content-Type'] = 'application/octet-stream'  # 设置头信息，告诉浏览器这是个文件
+            logger.info(f"下载文件：{temp_db.file_raw_name},uuid：{file_uuid}")
+            out_file_name = str(f'易滑邦快剪_{temp_db.file_raw_name}')
+            response['Content-Disposition'] = "attachment; filename*=utf-8''{}".format(escape_uri_path(out_file_name))
+            return response
+        else:
+            back_data = {
+                "code": 0,
+                "msg": "文件不存在",
+                "file_uuid": file_uuid
+            }
+            logger.info(f"调用下载接口，但是没UUID：{file_uuid} 没有查到")
+            return HttpResponse(json.dumps(back_data))
     else:
         # 请求方法为get时，生成文件上传页面
         back_data = {

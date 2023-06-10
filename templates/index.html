@@ -1,19 +1,17 @@
-<html>
-    <header>
-        <title>首页文件处理</title>
-    </header>
-
-<body>
-
-        <form enctype="multipart/form-data" action="/upload" method="post">
-            <!-- django 的csrf 防御机制 -->
-            {%csrf_token%}
-            <input type="file" name="file" />
-            <br>
-            <input type="submit" value="上传文件" />
-        </form>
-
-
-</body>
-
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="shortcut icon" type="image/x-icon" href="https://unpkg.byted-static.com/latest/byted/arco-config/assets/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>易滑邦 —— 智能快剪</title>
+    <script type="module" crossorigin src="/assets/index.8bc371d9.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/arco.0ad5c2c8.js">
+    <link rel="modulepreload" crossorigin href="/assets/vue.dfc519f1.js">
+    <link rel="stylesheet" href="/assets/index.2e76ab1f.css">
+  </head>
+  <body>
+    <div id="app"></div>
+    
+  </body>
 </html>
