@@ -1,5 +1,6 @@
 import os
 import threading
+from tkinter import Image
 
 import cv2
 import numpy as np
@@ -8,7 +9,7 @@ from django.db import models
 from imutils.object_detection import non_max_suppression
 from loguru import logger
 
-from QiVideoCut.settings import Update_ROOT
+from QiVideoCut.settings import Update_ROOT, Watermark_TEXT
 
 
 class video_status_db(models.Model):
@@ -80,6 +81,7 @@ class solve_video_Thread(threading.Thread):
         Out_Video_file_uuid_uri = os.path.join(Out_Video_uri, file_uuid + ".mp4")
 
         Watermark_file_uuid_uri = os.path.join(Update_ROOT, "watermark.png")
+        # Watermark = cv2.imread(Watermark_file_uuid_uri)
 
         if not os.path.exists(Raw_video_file_uuid_uri):
             temp_db = video_status_db.objects.get(file_uuid=file_uuid)  # 获取id为3的作者对象
@@ -112,8 +114,6 @@ class solve_video_Thread(threading.Thread):
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         writer = cv2.VideoWriter(Out_Video_file_uuid_uri, fourcc, frame_rate, (frame_width, frame_height), True)
 
-        watermark = cv2.imread(Watermark_file_uuid_uri)
-
         ret = 1
         if capture.isOpened():
             m = 0
@@ -132,7 +132,9 @@ class solve_video_Thread(threading.Thread):
                     pick = non_max_suppression(rects, overlapThresh=0.65)
                     # 绘制红色人体矩形框
                     if len(pick) >= 1:
+                        cv2.putText(img, Watermark_TEXT, (10,25), cv2.FONT_HERSHEY_PLAIN, 2, (255, 255, 255), 1)
                         writer.write(img)
+                        cv2.imshow("wname", img)
                 except Exception as err:
                     logger.error(f'提取视频：{file_uuid}，时发送错误：读取视频错误：{err}')
                     pass
@@ -147,10 +149,10 @@ class solve_video_Thread(threading.Thread):
         temp_db.status = 5
         temp_db.message = video_status_db.Status(temp_db.status)
         temp_db.save()
+        logger.info(f'转换完成，结束线程：{self.name}')
 
     def __del__(self):
         logger.info(f'结束线程：{self.name}')
-
 
     def stop(self):
         temp_db = video_status_db.objects.get(file_uuid=self.name)  # 获取id为3的作者对象
