@@ -78,9 +78,6 @@
 
 
 <script lang="ts">
-import {reactive} from 'vue';
-import VueRouter from 'vue-router'
-import {Router} from 'vue-router';
 import axios from 'axios'
 import { Modal } from '@arco-design/web-vue';
 

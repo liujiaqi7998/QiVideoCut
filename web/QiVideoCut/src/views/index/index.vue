@@ -53,9 +53,6 @@
 
 
 <script lang="ts">
-import {reactive} from 'vue';
-import VueRouter from 'vue-router'
-import {Router} from 'vue-router';
 
 export default {
   data() {
