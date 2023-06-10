@@ -14,7 +14,7 @@ from SmartVideoCut import models
 from SmartVideoCut.models import video_status_db, solve_video_Thread
 
 
-def index(request):
+def index(request, pk=""):
     # return redirect("index:shop",permanent=True)
     return render(request, "index.html")
 

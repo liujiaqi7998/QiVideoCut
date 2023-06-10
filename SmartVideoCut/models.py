@@ -1,18 +1,14 @@
-import ctypes
 import os
 import threading
-import uuid
-from datetime import timezone, datetime
-from imutils.object_detection import non_max_suppression
 
 import cv2
 import numpy as np
+import numpy as nps
 from django.db import models
-from django import forms
-from django.utils.html import format_html
+from imutils.object_detection import non_max_suppression
+from loguru import logger
 
 from QiVideoCut.settings import Update_ROOT
-from loguru import logger
 
 
 class video_status_db(models.Model):
@@ -144,13 +140,17 @@ class solve_video_Thread(threading.Thread):
                 temp_db = video_status_db.objects.get(file_uuid=file_uuid)  # 获取id为3的作者对象
                 temp_db.message = f'{m}/{frame_all_num}'
                 temp_db.save()
-
         # 释放资源
         capture.release()
         writer.release()
+        temp_db = video_status_db.objects.get(file_uuid=self.name)  # 获取id为3的作者对象
+        temp_db.status = 5
+        temp_db.message = video_status_db.Status(temp_db.status)
+        temp_db.save()
 
     def __del__(self):
         logger.info(f'结束线程：{self.name}')
+
 
     def stop(self):
         temp_db = video_status_db.objects.get(file_uuid=self.name)  # 获取id为3的作者对象

@@ -21,8 +21,15 @@ from SmartVideoCut import views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+
     path("", views.index, name="index"),
-    path("upload", views.upload, name="uploaded"),
-    path('get_status/<uuid:file_uuid>', views.get_status),
-    path('stop_solve/<uuid:file_uuid>', views.stop_solve),
+    path("index", views.index, name="index"),
+    path("get", views.index, name="index"),
+    path("status", views.index, name="index"),
+    path('status/<pk>', views.index, name="index"),
+
+    path("api_v1/upload", views.upload, name="uploaded"),
+    path('api_v1/get_status/<uuid:file_uuid>', views.get_status),
+    path('api_v1/stop_solve/<uuid:file_uuid>', views.stop_solve),
+    path('api_v1/download/<uuid:file_uuid>', views.download),
 ]
